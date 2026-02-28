@@ -192,4 +192,150 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 300);
     }
 
+
+    // ----------------------------
+    // 9. STACKED CARD SLIDER
+    // ----------------------------
+    const sliderDeck = document.querySelector('.emotional__slider-deck');
+    const slides = document.querySelectorAll('.emotional__card[data-slide]');
+    const dots = document.querySelectorAll('.emotional__slider-dot');
+    const prevBtn = document.getElementById('sliderPrev');
+    const nextBtn = document.getElementById('sliderNext');
+
+    if (sliderDeck && slides.length) {
+        let currentIndex = 0;
+        let isAnimating = false;
+        const totalSlides = slides.length;
+
+        // Position all cards initially
+        function positionCards() {
+            slides.forEach((card, i) => {
+                card.classList.remove('slide-active', 'slide-next', 'slide-hidden', 'slide-exit-left', 'slide-exit-right');
+                if (i === currentIndex) {
+                    card.classList.add('slide-active');
+                } else if (i === (currentIndex + 1) % totalSlides) {
+                    card.classList.add('slide-next');
+                } else {
+                    card.classList.add('slide-hidden');
+                }
+            });
+            // Update dots
+            dots.forEach((d, i) => {
+                d.classList.toggle('active', i === currentIndex);
+            });
+            // Auto-adjust deck height
+            adjustDeckHeight();
+        }
+
+        function adjustDeckHeight() {
+            const activeCard = slides[currentIndex];
+            if (activeCard) {
+                const h = activeCard.scrollHeight;
+                sliderDeck.style.minHeight = h + 'px';
+            }
+        }
+
+        function goToSlide(newIndex, direction) {
+            if (isAnimating || newIndex === currentIndex) return;
+            isAnimating = true;
+
+            const oldCard = slides[currentIndex];
+            const exitClass = direction === 'next' ? 'slide-exit-left' : 'slide-exit-right';
+
+            // Remove positioning classes from old card and apply exit
+            oldCard.classList.remove('slide-active', 'slide-next', 'slide-hidden');
+            oldCard.classList.add(exitClass);
+
+            currentIndex = newIndex;
+
+            // Delay repositioning to let exit anim start
+            setTimeout(() => {
+                positionCards();
+            }, 80);
+
+            // After full transition, clean up exit class
+            setTimeout(() => {
+                oldCard.classList.remove(exitClass);
+                isAnimating = false;
+            }, 600);
+        }
+
+        function goNext() {
+            const next = (currentIndex + 1) % totalSlides;
+            goToSlide(next, 'next');
+        }
+
+        function goPrev() {
+            const prev = (currentIndex - 1 + totalSlides) % totalSlides;
+            goToSlide(prev, 'prev');
+        }
+
+        // Arrow buttons
+        if (nextBtn) nextBtn.addEventListener('click', goNext);
+        if (prevBtn) prevBtn.addEventListener('click', goPrev);
+
+        // Dot buttons
+        dots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                const target = parseInt(dot.dataset.dot);
+                if (target === currentIndex) return;
+                const dir = target > currentIndex ? 'next' : 'prev';
+                goToSlide(target, dir);
+            });
+        });
+
+        // Touch / Mouse swipe support
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+
+        function onPointerDown(e) {
+            if (isAnimating) return;
+            isDragging = true;
+            startX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            currentX = startX;
+            const activeCard = slides[currentIndex];
+            activeCard.classList.add('is-dragging');
+        }
+
+        function onPointerMove(e) {
+            if (!isDragging) return;
+            currentX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+            const diff = currentX - startX;
+            const activeCard = slides[currentIndex];
+            // Move the card with the finger
+            const rotation = diff * 0.04;
+            activeCard.style.transform = `translateX(${diff}px) rotate(${rotation}deg) scale(1)`;
+        }
+
+        function onPointerUp() {
+            if (!isDragging) return;
+            isDragging = false;
+            const diff = currentX - startX;
+            const activeCard = slides[currentIndex];
+            activeCard.classList.remove('is-dragging');
+            activeCard.style.transform = '';
+
+            const threshold = 50;
+            if (diff < -threshold) {
+                goNext();
+            } else if (diff > threshold) {
+                goPrev();
+            }
+        }
+
+        // Attach events to the deck
+        sliderDeck.addEventListener('mousedown', onPointerDown);
+        sliderDeck.addEventListener('mousemove', onPointerMove);
+        sliderDeck.addEventListener('mouseup', onPointerUp);
+        sliderDeck.addEventListener('mouseleave', onPointerUp);
+        sliderDeck.addEventListener('touchstart', onPointerDown, { passive: true });
+        sliderDeck.addEventListener('touchmove', onPointerMove, { passive: true });
+        sliderDeck.addEventListener('touchend', onPointerUp);
+
+        // Init
+        positionCards();
+        window.addEventListener('resize', adjustDeckHeight);
+    }
+
 });
